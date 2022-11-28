@@ -1,0 +1,431 @@
+
+
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>psij.executors.local &#8212; PSI/J 0.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/cloud.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/extras.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Noticia+Text:400,i,b,bi|Open+Sans:400,i,b,bi|Roboto+Mono:400,i,b,bi&amp;display=swap" type="text/css" />
+    
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/extras.js"></script>
+
+    
+    
+     
+        <script src="../../../_static/jquery.cookie.js"></script>
+    
+
+    
+     
+        <script src="../../../_static/cloud.base.js"></script>
+    
+
+    
+     
+        <script src="../../../_static/cloud.js"></script>
+    
+
+    <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head><body>
+    <div class="relbar-top">
+        
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> &nbsp; &nbsp;</li>
+    <li><a href="../../../index.html">PSI/J 0.0.1 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">psij.executors.local</a></li> 
+      </ul>
+    </div>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for psij.executors.local</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module contains the local :class:`~psij.JobExecutor`.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="k">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">import</span> <span class="nn">psutil</span>
+
+<span class="kn">from</span> <span class="nn">psij</span> <span class="k">import</span> <span class="n">InvalidJobException</span><span class="p">,</span> <span class="n">SubmitException</span><span class="p">,</span> <span class="n">Launcher</span>
+<span class="kn">from</span> <span class="nn">psij</span> <span class="k">import</span> <span class="n">Job</span><span class="p">,</span> <span class="n">JobSpec</span><span class="p">,</span> <span class="n">JobExecutorConfig</span><span class="p">,</span> <span class="n">JobState</span><span class="p">,</span> <span class="n">JobStatus</span>
+<span class="kn">from</span> <span class="nn">psij</span> <span class="k">import</span> <span class="n">JobExecutor</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="n">_REAPER_SLEEP_TIME</span> <span class="o">=</span> <span class="mf">0.2</span>
+
+
+<span class="k">class</span> <span class="nc">_ProcessEntry</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">Job</span><span class="p">,</span> <span class="n">executor</span><span class="p">:</span> <span class="s1">&#39;LocalJobExecutor&#39;</span><span class="p">,</span> <span class="n">launcher</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Launcher</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job</span> <span class="o">=</span> <span class="n">job</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="n">executor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[int]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">done_time</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[float]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">out</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[str]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kill_flag</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">process</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[subprocess.Popen[bytes]]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">launcher</span> <span class="o">=</span> <span class="n">launcher</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">kill</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">process</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">root</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">pid</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">proc</span> <span class="ow">in</span> <span class="n">root</span><span class="o">.</span><span class="n">children</span><span class="p">(</span><span class="n">recursive</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+            <span class="n">proc</span><span class="o">.</span><span class="n">kill</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">kill</span><span class="p">()</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">poll</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">pid</span> <span class="o">=</span> <span class="s1">&#39;-&#39;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="p">:</span>
+            <span class="n">pid</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">pid</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">[jobid: </span><span class="si">{}</span><span class="s1">, pid: </span><span class="si">{}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">pid</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">_ChildProcessEntry</span><span class="p">(</span><span class="n">_ProcessEntry</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">Job</span><span class="p">,</span> <span class="n">executor</span><span class="p">:</span> <span class="s1">&#39;LocalJobExecutor&#39;</span><span class="p">,</span>
+                 <span class="n">launcher</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Launcher</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="n">executor</span><span class="p">,</span> <span class="n">launcher</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">kill</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">kill</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">poll</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">process</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">exit_code</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">poll</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">exit_code</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">stdout</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">exit_code</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">exit_code</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+
+
+<span class="k">class</span> <span class="nc">_AttachedProcessEntry</span><span class="p">(</span><span class="n">_ProcessEntry</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">Job</span><span class="p">,</span> <span class="n">process</span><span class="p">:</span> <span class="n">psutil</span><span class="o">.</span><span class="n">Process</span><span class="p">,</span> <span class="n">executor</span><span class="p">:</span> <span class="s1">&#39;LocalJobExecutor&#39;</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="n">executor</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">process</span> <span class="o">=</span> <span class="n">process</span>
+
+    <span class="k">def</span> <span class="nf">kill</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">kill</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">poll</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">process</span>
+            <span class="n">ec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># type: Optional[int]</span>
+            <span class="k">if</span> <span class="n">ec</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">ec</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="n">psutil</span><span class="o">.</span><span class="n">TimeoutExpired</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+
+
+<span class="k">def</span> <span class="nf">_get_env</span><span class="p">(</span><span class="n">spec</span><span class="p">:</span> <span class="n">JobSpec</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+    <span class="k">if</span> <span class="n">spec</span><span class="o">.</span><span class="n">inherit_environment</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">spec</span><span class="o">.</span><span class="n">environment</span><span class="p">:</span>
+            <span class="c1"># if env is none in Popen, it inherits env from parent</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># merge current env with spec env</span>
+            <span class="n">env</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">env</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">environment</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">env</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># only spec env</span>
+        <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">environment</span>
+
+
+<span class="k">class</span> <span class="nc">_ProcessReaper</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+    <span class="n">_instance</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: _ProcessReaper</span>
+    <span class="n">_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">RLock</span><span class="p">()</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_instance</span><span class="p">(</span><span class="bp">cls</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="s1">&#39;_ProcessReaper&#39;</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="s1">&#39;_ProcessReaper&#39;</span><span class="p">:</span>
+        <span class="k">with</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_instance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">_instance</span> <span class="o">=</span> <span class="n">_ProcessReaper</span><span class="p">()</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">_instance</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_instance</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Local Executor Process Reaper&#39;</span><span class="p">,</span> <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_jobs</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># type: Dict[Job, _ProcessEntry]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">RLock</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">register</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entry</span><span class="p">:</span> <span class="n">_ProcessEntry</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Registering process </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">entry</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_jobs</span><span class="p">[</span><span class="n">entry</span><span class="o">.</span><span class="n">job</span><span class="p">]</span> <span class="o">=</span> <span class="n">entry</span>
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Started </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_check_processes</span><span class="p">()</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Error polling for process status&#39;</span><span class="p">,</span> <span class="n">ex</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">_REAPER_SLEEP_TIME</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_check_processes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">done</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: List[_ProcessEntry]</span>
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jobs</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">entry</span><span class="o">.</span><span class="n">kill_flag</span><span class="p">:</span>
+                <span class="n">entry</span><span class="o">.</span><span class="n">kill</span><span class="p">()</span>
+
+            <span class="n">exit_code</span><span class="p">,</span> <span class="n">out</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">poll</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">exit_code</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">entry</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">=</span> <span class="n">exit_code</span>
+                <span class="n">entry</span><span class="o">.</span><span class="n">done_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+                <span class="n">entry</span><span class="o">.</span><span class="n">out</span> <span class="o">=</span> <span class="n">out</span>
+                <span class="n">done</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">entry</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">done</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jobs</span><span class="p">[</span><span class="n">entry</span><span class="o">.</span><span class="n">job</span><span class="p">]</span>
+            <span class="n">entry</span><span class="o">.</span><span class="n">executor</span><span class="o">.</span><span class="n">_process_done</span><span class="p">(</span><span class="n">entry</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">Job</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jobs</span><span class="p">[</span><span class="n">job</span><span class="p">]</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">kill_flag</span> <span class="o">=</span> <span class="kc">True</span>
+
+
+<div class="viewcode-block" id="LocalJobExecutor"><a class="viewcode-back" href="../../../api.html#psij.executors.local.LocalJobExecutor">[docs]</a><span class="k">class</span> <span class="nc">LocalJobExecutor</span><span class="p">(</span><span class="n">JobExecutor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A job executor that runs jobs locally using :class:`subprocess.Popen`.</span>
+
+<span class="sd">    This job executor is intended to be used when there is no resource manager, only</span>
+<span class="sd">    the operating system. Or when there is a resource manager, but it should be ignored.</span>
+
+<span class="sd">    Limitations: in Linux, attached jobs always appear to complete with a zero exit code regardless</span>
+<span class="sd">    of the actual exit code.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">JobExecutorConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes a `LocalJobExecutor`.</span>
+
+<span class="sd">        :param url: Not used, but required by the spec for automatic initialization.</span>
+<span class="sd">        :param config: The `LocalJobExecutor` does not have any configuration options.</span>
+<span class="sd">        :type config: psij.JobExecutorConfig</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span> <span class="k">if</span> <span class="n">config</span> <span class="k">else</span> <span class="n">JobExecutorConfig</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reaper</span> <span class="o">=</span> <span class="n">_ProcessReaper</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span>
+
+<div class="viewcode-block" id="LocalJobExecutor.submit"><a class="viewcode-back" href="../../../.generated/psij.executors.html#psij.executors.local.LocalJobExecutor.submit">[docs]</a>    <span class="k">def</span> <span class="nf">submit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">Job</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Submits the specified :class:`~psij.Job` to be run locally.</span>
+
+<span class="sd">        Successful return of this method indicates that the job has been started locally and all</span>
+<span class="sd">        changes in the job status, including failures, are reported using notifications. If the job</span>
+<span class="sd">        specification is invalid, an :class:`~psij.InvalidJobException` is thrown. If</span>
+<span class="sd">        the actual submission fails for reasons outside the validity of the job,</span>
+<span class="sd">        a :class:`~psij.SubmitException` is thrown.</span>
+
+<span class="sd">        :param job: The job to be submitted.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">spec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_job</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+
+        <span class="n">p</span> <span class="o">=</span> <span class="n">_ChildProcessEntry</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_launcher</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_launcher_name</span><span class="p">(</span><span class="n">spec</span><span class="p">)))</span>
+        <span class="k">assert</span> <span class="n">p</span><span class="o">.</span><span class="n">launcher</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">launcher</span><span class="o">.</span><span class="n">get_launch_command</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">job</span><span class="o">.</span><span class="n">_status_cv</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="n">JobState</span><span class="o">.</span><span class="n">CANCELED</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">SubmitException</span><span class="p">(</span><span class="s1">&#39;Job canceled&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Running </span><span class="si">%s</span><span class="s1">,  out=</span><span class="si">%s</span><span class="s1">, err=</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">spec</span><span class="o">.</span><span class="n">stdout_path</span><span class="p">,</span> <span class="n">spec</span><span class="o">.</span><span class="n">stderr_path</span><span class="p">)</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">STDOUT</span><span class="p">,</span>
+                                         <span class="n">close_fds</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cwd</span><span class="o">=</span><span class="n">spec</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="n">_get_env</span><span class="p">(</span><span class="n">spec</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reaper</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+            <span class="n">job</span><span class="o">.</span><span class="n">_native_id</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">pid</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_set_job_status</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="n">JobStatus</span><span class="p">(</span><span class="n">JobState</span><span class="o">.</span><span class="n">QUEUED</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span>
+                                                <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;nativeId&#39;</span><span class="p">:</span> <span class="n">job</span><span class="o">.</span><span class="n">_native_id</span><span class="p">}))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_set_job_status</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="n">JobStatus</span><span class="p">(</span><span class="n">JobState</span><span class="o">.</span><span class="n">ACTIVE</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()))</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SubmitException</span><span class="p">(</span><span class="s1">&#39;Failed to submit job&#39;</span><span class="p">,</span> <span class="n">exception</span><span class="o">=</span><span class="n">ex</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="LocalJobExecutor.cancel"><a class="viewcode-back" href="../../../.generated/psij.executors.html#psij.executors.local.LocalJobExecutor.cancel">[docs]</a>    <span class="k">def</span> <span class="nf">cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">Job</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Cancels a job.</span>
+
+<span class="sd">        :param job: The job to cancel.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_job_status</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="n">JobStatus</span><span class="p">(</span><span class="n">JobState</span><span class="o">.</span><span class="n">CANCELED</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reaper</span><span class="o">.</span><span class="n">cancel</span><span class="p">(</span><span class="n">job</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_process_done</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="n">_ProcessEntry</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">p</span><span class="o">.</span><span class="n">exit_code</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="n">JobState</span><span class="o">.</span><span class="n">COMPLETED</span>
+        <span class="k">elif</span> <span class="n">p</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">p</span><span class="o">.</span><span class="n">kill_flag</span><span class="p">:</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="n">JobState</span><span class="o">.</span><span class="n">CANCELED</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># We want to capture errors in the launcher scripts. Since, under normal circumstances,</span>
+            <span class="c1"># the exit code of the launcher is the exit code of the job, we must use a different</span>
+            <span class="c1"># mechanism to distinguish between job errors and launcher errors. So we delegate to</span>
+            <span class="c1"># the launcher implementation to figure out if the error belongs to the job or not</span>
+            <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">launcher</span> <span class="ow">and</span> <span class="n">p</span><span class="o">.</span><span class="n">out</span> <span class="ow">and</span> <span class="n">p</span><span class="o">.</span><span class="n">launcher</span><span class="o">.</span><span class="n">is_launcher_failure</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">out</span><span class="p">):</span>
+                <span class="n">message</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">launcher</span><span class="o">.</span><span class="n">get_launcher_failure_message</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">out</span><span class="p">)</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="n">JobState</span><span class="o">.</span><span class="n">FAILED</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_job_status</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">job</span><span class="p">,</span> <span class="n">JobStatus</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">done_time</span><span class="p">,</span> <span class="n">exit_code</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">exit_code</span><span class="p">,</span>
+                                              <span class="n">message</span><span class="o">=</span><span class="n">message</span><span class="p">))</span>
+
+<div class="viewcode-block" id="LocalJobExecutor.list"><a class="viewcode-back" href="../../../.generated/psij.executors.html#psij.executors.local.LocalJobExecutor.list">[docs]</a>    <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a list of ids representing jobs that are running on the underlying implementation.</span>
+
+<span class="sd">        Specifically for the `LocalJobExecutor`, this returns a list of `~psij.NativeId` objects</span>
+<span class="sd">        corresponding to the processes running under the current user on the local machine. These</span>
+<span class="sd">        processes need not correspond to jobs statrted by calling the `submit()` method of an</span>
+<span class="sd">        instance of a `LocalJobExecutor`.</span>
+
+<span class="sd">        :return: The list of `~psij.NativeId` objects corresponding to the current user&#39;s</span>
+<span class="sd">            processes running locally.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">my_username</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">Process</span><span class="p">()</span><span class="o">.</span><span class="n">username</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">pid</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">psutil</span><span class="o">.</span><span class="n">process_iter</span><span class="p">([</span><span class="s1">&#39;pid&#39;</span><span class="p">,</span> <span class="s1">&#39;username&#39;</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;username&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">my_username</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="LocalJobExecutor.attach"><a class="viewcode-back" href="../../../.generated/psij.executors.html#psij.executors.local.LocalJobExecutor.attach">[docs]</a>    <span class="k">def</span> <span class="nf">attach</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">Job</span><span class="p">,</span> <span class="n">native_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Attaches a job to a process.</span>
+
+<span class="sd">        The job must be in the :attr:`~psij.JobState.NEW` state. The exit code of the attached job</span>
+<span class="sd">        will not be available upon completion and a zero exit code will always be returned for jobs</span>
+<span class="sd">        attached by the `LocalJobExecutor`.</span>
+
+<span class="sd">        :param job: The job to attach.</span>
+<span class="sd">        :param native_id: The native ID of the process to attached to, as obtained through</span>
+<span class="sd">            :func:`~psij.executors.LocalJobExecutor.list` method.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">state</span> <span class="o">!=</span> <span class="n">JobState</span><span class="o">.</span><span class="n">NEW</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">InvalidJobException</span><span class="p">(</span><span class="s1">&#39;Job must be in the NEW state&#39;</span><span class="p">)</span>
+        <span class="n">job</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="n">pid</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">native_id</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reaper</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">_AttachedProcessEntry</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="n">psutil</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">pid</span><span class="p">),</span> <span class="bp">self</span><span class="p">))</span>
+        <span class="c1"># We assume that the native_id above is a PID that was obtained at some point using</span>
+        <span class="c1"># list(). If so, the process is either still running or has completed. Either way, we must</span>
+        <span class="c1"># bring it up to ACTIVE state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_job_status</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="n">JobStatus</span><span class="p">(</span><span class="n">JobState</span><span class="o">.</span><span class="n">QUEUED</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_job_status</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="n">JobStatus</span><span class="p">(</span><span class="n">JobState</span><span class="o">.</span><span class="n">ACTIVE</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()))</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_launcher_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spec</span><span class="p">:</span> <span class="n">JobSpec</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">spec</span><span class="o">.</span><span class="n">launcher</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;single&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">launcher</span></div>
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div class="sphinx-toc sphinxglobaltoc">
+<h3><a href="../../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user_guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">The PSI/J API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../development/index.html">Developer Docs</a></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+    
+    
+        <div class="sidebar-toggle-group no-js">
+            
+            <button class="sidebar-toggle" id="sidebar-hide" title="Hide the sidebar menu">
+                 «
+                <span class="show-for-small">hide menu</span>
+                
+            </button>
+            <button class="sidebar-toggle" id="sidebar-show" title="Show the sidebar menu">
+                
+                <span class="show-for-small">menu</span>
+                <span class="hide-for-small">sidebar</span>
+                 »
+            </button>
+        </div>
+    
+      <div class="clearer"></div>
+    </div>
+    <div class="relbar-bottom">
+        
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> &nbsp; &nbsp;</li>
+    <li><a href="../../../index.html">PSI/J 0.0.1 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">psij.executors.local</a></li> 
+      </ul>
+    </div>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright The ExaWorks Team.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+    <!-- cloud_sptheme 1.4 -->
+  </body>
+</html>

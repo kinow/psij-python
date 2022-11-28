@@ -1,0 +1,233 @@
+
+
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>psij.exceptions &#8212; PSI/J 0.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/cloud.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/extras.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Noticia+Text:400,i,b,bi|Open+Sans:400,i,b,bi|Roboto+Mono:400,i,b,bi&amp;display=swap" type="text/css" />
+    
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/extras.js"></script>
+
+    
+    
+     
+        <script src="../../_static/jquery.cookie.js"></script>
+    
+
+    
+     
+        <script src="../../_static/cloud.base.js"></script>
+    
+
+    
+     
+        <script src="../../_static/cloud.js"></script>
+    
+
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head><body>
+    <div class="relbar-top">
+        
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> &nbsp; &nbsp;</li>
+    <li><a href="../../index.html">PSI/J 0.0.1 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">psij.exceptions</a></li> 
+      </ul>
+    </div>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for psij.exceptions</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">psij</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Optional</span>
+
+
+<div class="viewcode-block" id="InvalidJobException"><a class="viewcode-back" href="../../api.html#psij.exceptions.InvalidJobException">[docs]</a><span class="k">class</span> <span class="nc">InvalidJobException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;An exception describing a problem with a job specification.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">exception</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">Exception</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Constructs an `InvalidJobException` while allowing properties to be initialized.</span>
+
+<span class="sd">        :param message: see the :attr:`message` property</span>
+<span class="sd">        :param exception: see the :attr:`exception` property</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">message</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieves the message associated with this exception. This is a descriptive message that is</span>
+<span class="sd">        sufficiently clear to be presented to an end-user.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exception</span> <span class="o">=</span> <span class="n">exception</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns an optional underlying exception that can potentially be used for debugging</span>
+<span class="sd">        purposes, but which should not, in general, be presented to an end-user.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="SubmitException"><a class="viewcode-back" href="../../api.html#psij.exceptions.SubmitException">[docs]</a><span class="k">class</span> <span class="nc">SubmitException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An exception representing job submission issues.</span>
+
+<span class="sd">    This exception is thrown when the :func:`~psij.JobExecutor.submit` call fails for</span>
+<span class="sd">    a reason that is independent of the job that is being submitted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">exception</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">Exception</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">transient</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Constructs a `SubmitException` and allows properties to be initialized.</span>
+
+<span class="sd">        :param message: see :attr:`message`</span>
+<span class="sd">        :param exception: see :attr:`exception`</span>
+<span class="sd">        :param transient: see :attr:`transient`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">message</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieves the message associated with this exception. This is a descriptive message</span>
+<span class="sd">        that is sufficiently clear to be presented to an end-user.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exception</span> <span class="o">=</span> <span class="n">exception</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns an optional underlying exception that can potentially be used for debugging</span>
+<span class="sd">        purposes, but which should not, in general, be presented to an end-user.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transient</span> <span class="o">=</span> <span class="n">transient</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns `True` if the underlying condition that triggered this exception is transient.</span>
+<span class="sd">        Jobs that cannot be submitted due to a transient exceptional condition have chance of being</span>
+<span class="sd">        successfully re-submitted at a later time, which is a suggestion to client code that it</span>
+<span class="sd">        could re-attempt the operation that triggered this exception. However, the exact chances of</span>
+<span class="sd">        success depend on many factors and are not guaranteed in any particular case. For example,</span>
+<span class="sd">        a DNS resolution failure while attempting to connect to a remote service is a transient</span>
+<span class="sd">        error since it can be reasonably assumed that DNS resolution is a persistent feature of an</span>
+<span class="sd">        Internet-connected network. By contrast, an authentication failure due to an invalid</span>
+<span class="sd">        username/password combination would not be a transient failure. While it may be possible</span>
+<span class="sd">        for a temporary defect in a service to cause such a failure, under normal operating</span>
+<span class="sd">        conditions such an error would persist across subsequent re-tries until correct credentials</span>
+<span class="sd">        are used.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="UnreachableStateException"><a class="viewcode-back" href="../../api.html#psij.exceptions.UnreachableStateException">[docs]</a><span class="k">class</span> <span class="nc">UnreachableStateException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Indicates that a job state being waited for cannot be reached.</span>
+
+<span class="sd">    This exception is thrown when the :func:`~psij.Job.wait` method is called with a set of</span>
+<span class="sd">    states that cannot be reached by the job when the call is made.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="s1">&#39;psij.JobStatus&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Constructs an `UnreachableStateException`.</span>
+
+<span class="sd">        :param status: The :class:`~psij.JobStatus` that the job was in when</span>
+<span class="sd">            :func:`~psij.Job.wait` was called and which prevents the desired states to be</span>
+<span class="sd">            reached.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">status</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the job status that has caused an implementation to determine that the desired</span>
+<span class="sd">        states passed to the :func:`~psij.Job.wait` method cannot be reached.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div class="sphinx-toc sphinxglobaltoc">
+<h3><a href="../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user_guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">The PSI/J API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../development/index.html">Developer Docs</a></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+    
+    
+        <div class="sidebar-toggle-group no-js">
+            
+            <button class="sidebar-toggle" id="sidebar-hide" title="Hide the sidebar menu">
+                 «
+                <span class="show-for-small">hide menu</span>
+                
+            </button>
+            <button class="sidebar-toggle" id="sidebar-show" title="Show the sidebar menu">
+                
+                <span class="show-for-small">menu</span>
+                <span class="hide-for-small">sidebar</span>
+                 »
+            </button>
+        </div>
+    
+      <div class="clearer"></div>
+    </div>
+    <div class="relbar-bottom">
+        
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> &nbsp; &nbsp;</li>
+    <li><a href="../../index.html">PSI/J 0.0.1 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">psij.exceptions</a></li> 
+      </ul>
+    </div>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright The ExaWorks Team.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+    <!-- cloud_sptheme 1.4 -->
+  </body>
+</html>

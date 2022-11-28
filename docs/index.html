@@ -1,0 +1,283 @@
+
+
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Portable Submission Interface for Jobs (PSI/J) - Python Library &#8212; PSI/J 0.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/cloud.css" />
+    <link rel="stylesheet" type="text/css" href="_static/extras.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Noticia+Text:400,i,b,bi|Open+Sans:400,i,b,bi|Roboto+Mono:400,i,b,bi&amp;display=swap" type="text/css" />
+    
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/extras.js"></script>
+
+    
+    
+     
+        <script src="_static/jquery.cookie.js"></script>
+    
+
+    
+     
+        <script src="_static/cloud.base.js"></script>
+    
+
+    
+     
+        <script src="_static/cloud.js"></script>
+    
+
+    <link rel="shortcut icon" href="_static/favicon.ico"/>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Getting Started" href="getting_started.html" /> 
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head><body>
+    <div class="relbar-top">
+        
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> &nbsp; &nbsp;</li>
+        <li class="right" >
+          <a href="getting_started.html" title="Getting Started"
+             accesskey="N">next</a> &nbsp; &nbsp;</li>
+    <li><a href="#">PSI/J 0.0.1 documentation</a> &#187;</li>
+
+        <li class="nav-item nav-item-this"><a href="">Portable Submission Interface for Jobs (PSI/J) - Python Library</a></li> 
+      </ul>
+    </div>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="portable-submission-interface-for-jobs-psi-j-python-library">
+<h1>Portable Submission Interface for Jobs (PSI/J) - Python Library<a class="headerlink" href="#portable-submission-interface-for-jobs-psi-j-python-library" title="Permalink to this headline">¶</a></h1>
+<a class="reference internal image-reference" href="_images/psij.png"><img alt="_images/psij.png" class="align-center" src="_images/psij.png" style="width: 70%;" /></a>
+<p>PSI/J provides a modern unified API across different HPC schedulers, enabling
+your HPC application to run virtually anywhere.  PSI/J automatically translates
+abstract job specifications into concrete scripts and commands to send to the
+scheduler. PSI/J was built by a team with decades of experience building
+workflow systems for large scale computing. PSI/J has a number of advantages:</p>
+<ol class="arabic simple">
+<li><p><strong>Runs entirely in user space:</strong> no need to wait for infrequent deployment cycles, it’s easy to leverage built-in or commmunity-provided plug-ins.</p></li>
+<li><p><strong>An asynchronous modern API for job management:</strong> a clean Python API for requesting and managing jobs.</p></li>
+<li><p><strong>Supports the common batch schedulers:</strong> we test PSI/J across multiple DOE supercomputer centers. It’s easy to test PSI/J on your systems and share the results with the community.</p></li>
+<li><p><strong>Built by the HPC community, for the HPC community:</strong> PSI/J is based on a number of libraries used by state-of-the-art HPC workflow applications.</p></li>
+<li><p><strong>PSI/J is an open source project:</strong> we are establishing a community to develop, test, and deploy PSI/J across many HPC facilities.</p></li>
+</ol>
+<p>Most HPC centers now feature multiple schedulers, rolling policy changes and
+deployments of software stacks, and subtle differences even across systems with
+similar architectures.  <strong>PSI/J is designed to tame this complexity</strong> and provide
+computational scientists and workflow developers a common API for interacting
+with HPC centers.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#installation">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#requirements">Requirements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#install-from-pip">Install from pip</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#install-from-source">Install from source</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html">User Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="user_guide.html#who-psi-j-is-for">Who PSI/J is for</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide.html#who-psi-j-is-probably-not-for">Who PSI/J is (probably) not for</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide.html#terminology">Terminology</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="user_guide.html#what-is-a-job">What is a Job?</a></li>
+<li class="toctree-l3"><a class="reference internal" href="user_guide.html#what-is-a-jobexecutor">What is a JobExecutor?</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide.html#submit-a-job">Submit a Job</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="user_guide.html#multiple-jobs">Multiple Jobs</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide.html#configuring-your-job">Configuring your Job</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="user_guide.html#job-arguments">Job Arguments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="user_guide.html#job-environment">Job Environment</a></li>
+<li class="toctree-l3"><a class="reference internal" href="user_guide.html#job-stdio">Job Stdio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="user_guide.html#job-resources">Job Resources</a></li>
+<li class="toctree-l3"><a class="reference internal" href="user_guide.html#launching-methods">Launching Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="user_guide.html#scheduling-information">Scheduling Information</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide.html#managing-job-state">Managing Job State</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="user_guide.html#waiting-for-completion">Waiting for Completion</a></li>
+<li class="toctree-l3"><a class="reference internal" href="user_guide.html#canceling-your-job">Canceling your Job</a></li>
+<li class="toctree-l3"><a class="reference internal" href="user_guide.html#status-callbacks">Status Callbacks</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">The PSI/J API</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api.html#the-job-class-and-its-modifiers">The Job class and its modifiers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api.html#job-modifiers">Job modifiers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#executors">Executors</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api.html#jobexecutor-base-class">JobExecutor Base Class</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api.html#cobalt">Cobalt</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api.html#flux">Flux</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api.html#lsf">LSF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api.html#pbs">PBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api.html#slurm">Slurm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api.html#local">Local</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api.html#radical-pilot">Radical Pilot</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#launchers">Launchers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api.html#launcher-base-class">Launcher base class</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api.html#aprun">aprun</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api.html#jsrun">jsrun</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api.html#srun">srun</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api.html#mpirun">mpirun</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api.html#single">single</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api.html#multiple">multiple</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#other-package-contents">Other Package Contents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#api-reference">API Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href=".generated/modules.html">src</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="development/index.html">Developer Docs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="development/contributing.html">Contributing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="development/contributing.html#how-to-contribute">How to Contribute</a></li>
+<li class="toctree-l3"><a class="reference internal" href="development/contributing.html#running-the-tests">Running the Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="development/contributing.html#building-the-documentation">Building the Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="development/programming.html">Architecture</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="development/programming.html#the-executor-loading-system">The Executor Loading System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="development/programming.html#the-batch-scheduler-executor">The Batch Scheduler Executor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="development/programming.html#script-based-launchers">Script Based Launchers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="development/tutorial_add_executor.html">Adding an executor</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="development/tutorial_add_executor.html#what-is-an-executor-and-why-might-you-want-to-add-one">What is an executor and why might you want to add one?</a></li>
+<li class="toctree-l3"><a class="reference internal" href="development/tutorial_add_executor.html#a-not-implemented-stub">A not-implemented stub</a></li>
+<li class="toctree-l3"><a class="reference internal" href="development/tutorial_add_executor.html#implementing-job-submission">Implementing job submission</a></li>
+<li class="toctree-l3"><a class="reference internal" href="development/tutorial_add_executor.html#implementing-status">Implementing status</a></li>
+<li class="toctree-l3"><a class="reference internal" href="development/tutorial_add_executor.html#implementing-cancel">Implementing cancel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="development/tutorial_add_executor.html#what-s-missing">What’s missing?</a></li>
+<li class="toctree-l3"><a class="reference internal" href="development/tutorial_add_executor.html#how-to-distribute-your-executor">How to distribute your executor</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div class="sphinx-toc sphinxglobaltoc">
+<h3><a href="#">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">The PSI/J API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development/index.html">Developer Docs</a></li>
+</ul>
+</div>
+  <div class="sphinxnext">
+    <h4>Next page</h4>
+    <p class="topless"><a href="getting_started.html"
+                          title="Next page">&rarr; Getting Started</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/index.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+    
+    
+        <div class="sidebar-toggle-group no-js">
+            
+            <button class="sidebar-toggle" id="sidebar-hide" title="Hide the sidebar menu">
+                 «
+                <span class="show-for-small">hide menu</span>
+                
+            </button>
+            <button class="sidebar-toggle" id="sidebar-show" title="Show the sidebar menu">
+                
+                <span class="show-for-small">menu</span>
+                <span class="hide-for-small">sidebar</span>
+                 »
+            </button>
+        </div>
+    
+      <div class="clearer"></div>
+    </div>
+    <div class="relbar-bottom">
+        
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> &nbsp; &nbsp;</li>
+        <li class="right" >
+          <a href="getting_started.html" title="Getting Started"
+             >next</a> &nbsp; &nbsp;</li>
+    <li><a href="#">PSI/J 0.0.1 documentation</a> &#187;</li>
+
+        <li class="nav-item nav-item-this"><a href="">Portable Submission Interface for Jobs (PSI/J) - Python Library</a></li> 
+      </ul>
+    </div>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright The ExaWorks Team.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+    <!-- cloud_sptheme 1.4 -->
+  </body>
+</html>
